@@ -9,22 +9,41 @@
  */
 var Levels = new (function(){
   var self = this,
-      puzzles = { size5: [], size6: [], size7: [], size8: []  },
+      puzzles = { size5: [], size6: [], size7: [], size8: [] },
       qualityThreshold = {
         5: 60,
         6: 60,
         7: 60,
         8: 60
       };
+
+  // starts to create puzzles
+  function init() {
+    loadFromStorage();
+    BackgroundService.kick();
+  }
+
+  function loadFromStorage() {
+    try {
+      var loadedPuzzles = JSON.parse(Storage.getDataValue('puzzles', JSON.stringify(puzzles)));
+      if (loadedPuzzles.size5)
+        puzzles = loadedPuzzles;
+    }
+    catch (e) {}
+  }
+
+  function saveToStorage() {
+    Storage.setDataValue('puzzles', JSON.stringify(puzzles));
+  }
   
   // indicates the user completed a puzzle of given size
   function finishedSize(size) {
     var puzzleArr = puzzles['size' + size];
     if (!puzzleArr || !puzzleArr.length)
       return;
-    // remove the first puzzle
+    // remove the first puzzle, store in memory and see if we need to create more
     puzzleArr.shift();
-    // see if we can generate a (few) new one(s)
+    saveToStorage();
     BackgroundService.kick();
   }
 
@@ -33,7 +52,9 @@ var Levels = new (function(){
     var puzzleArr = puzzles['size' + size];
     if (!puzzleArr) 
       return false;
+    // add the puzzle, save to storage and see if we need to create more
     puzzleArr.push(puzzle);
+    saveToStorage();
     BackgroundService.kick();
   }
 
@@ -54,6 +75,7 @@ var Levels = new (function(){
     // if we have enough puzzles, generate a new one for the next time the user plays
     if (puzzleArr.length > 1) {
       puzzleArr.shift();
+      saveToStorage();
       BackgroundService.kick();
     }
     return puzzle;
@@ -91,20 +113,11 @@ var Levels = new (function(){
     puzzle.full = grid.getValues();
     grid.breakDown();      
 
-    // // quality control makes sure grids get proper 
-    // do {
-    //   if (attempts > 0) {
-    //     grid.clear();
-    //     grid.state.restore('full')
-    //   }
-    //   grid.breakDown();
-    //   puzzle.quality = grid.quality;
-    // }
-    // while (puzzle.quality < qualityThreshold[size] && attempts++ < 42);
-
     puzzle.empty = grid.getValues();
     puzzle.ms = new Date() - d;
     puzzle.quality = grid.quality;
+
+    //console.log(puzzle.ms, puzzle)  
 
     return puzzle;
   }
@@ -115,6 +128,7 @@ var Levels = new (function(){
   this.getSize = getSize;
   this.create = create;
   this.needs = needs;
+  this.init = init;
   this.__defineGetter__('puzzles', function() { return puzzles; });
 
 })();

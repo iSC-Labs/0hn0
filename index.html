@@ -203,45 +203,32 @@
             </div>
 
             <div id="score">
-                <img id="trophy" src="img/trophy.png"><span id="scorenr">42</span>
+                <span id="scorelabel">Score </span><span id="scorenr">42</span>
             </div>
-            <div id="time">
-                <span id="hiddendigit" class="digit">5</span>
-                <span id="timer">
-                    <span id="minutes-l"></span>
-                    <span id="minutes-r"></span>
-                    <span>:</span>
-                    <span id="seconds-l"></span>
-                    <span id="seconds-r"></span>
-                </span>
-            </div>
+            <span id="times">
+                <div id="time">
+                    <span id="timer">
+                        <span id="minutes-l" class="digit"></span>
+                        <span id="minutes-r" class="digit"></span>
+                        <span>:</span>
+                        <span id="seconds-l" class="digit"></span>
+                        <span id="seconds-r" class="digit"></span>
+                    </span>
+                </div>
+            </span>
             <div id="bar">
                 <div class="iconcon" data-action="back"><div id="back" class="icon"></div></div>
                 <div class="iconcon" data-action="undo"><div id="undo" class="icon"></div></div>
-<!--                 <div class="iconcon" data-action="apps"><div id="apps" class="icon"></div></div>
- -->                <a class="iconcon" id="facebook" target="_blank" href="http://www.facebook.com/sharer/sharer.php" data-action="facebook" data-link="social"><span id="facebookicon" class="icon"></span></a>
-                <a class="iconcon" id="tweeturl" target="_blank" href="about:blank" data-link="social" data-action="tweet"><span id="tweet" class="icon"></span></a>
                 <div class="iconcon" data-action="help"><div id="help" class="icon"></div></div>
+                <div class="iconcon" data-action="stopwatch"><div id="stopwatch" class="icon"></div></div>
                 <div class="iconcon" data-action="in-game-about"><div id="rules" class="icon"></div></div>
                 <div class="iconcon" data-action="continue"><div id="continue" class="icon"></div></div>
             </div>
         </div>
+
     </div>
-    <div id="feelsize"></div>
-    <script>
-        var WebFontConfig = {
-            custom: {
-                families: ['molle','Josefin Sans'],
-                urls: ['fonts/fonts.css']
-            },
-            active: function() {
-                //Game.start();
-                app.fontsLoaded();
-            }
-        };  
-    </script>  
+    <div id="feelsize"><span id="hiddendigit">5</span></div>
     <script type="text/javascript" src="cordova.js"></script>
-    <script type="text/javascript" src="js/index.js"></script>
     <script type="text/javascript" src="js/jquery-2.1.0.min.js"></script>
     <script type="text/javascript" src="js/utils.js"></script>
     <script type="text/javascript" src="js/game.js"></script>
@@ -249,9 +236,11 @@
     <script type="text/javascript" src="js/tile.js"></script>
     <script type="text/javascript" src="js/hint.js"></script>
     <script type="text/javascript" src="js/tutorial.js"></script>
-    <script type="text/javascript" src="js/webfont.js"></script>
     <script type="text/javascript" src="js/levels.js"></script>
     <script type="text/javascript" src="js/backgroundservice.js"></script>
     <script type="text/javascript" src="js/storage.js"></script>
+    <script>
+        $(function(){Game.init();Game.start();});
+    </script>  
   </body>
 </html>

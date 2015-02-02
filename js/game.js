@@ -11,10 +11,13 @@ var Game = new (function() {
 
       debugSize = 0,
       debug = document.location.hash == '#debug',
+      tapBoardSizeToSolve = false,
       
       tweet = window.isWebApp,
       facebook = window.isWebApp && !$.browser.chromeWebStore,
       showAppsIcon = window.isWebApp,
+      showTime = false,
+
       startedTutorial = false,
       grid,
       sizes = [5,6,7,8],
@@ -36,7 +39,12 @@ var Game = new (function() {
       continueLastGame = false,
       systemTilesLockShown = false,
       time = 0,
+      timeStr = '',
       timerTOH = 0,
+      timeInSeconds = 0,
+      hintsUsed = 0,
+      undosUsed = 0,
+      locksToggled = 0,
       shareMsg = '#0hn0 It\'s 0h h1\'s companion! Go get addicted to this lovely puzzle game http://0hn0.com (or get the app)!';
 
   function init() {
@@ -45,6 +53,8 @@ var Game = new (function() {
       debug = true;
       debugSize = testDebugSize;
     }
+
+    showTime = Storage.getDataValue('showTimeTrial', false);
 
     getScore(function(value) {
       $('#scorenr').html(value);
@@ -75,47 +85,13 @@ var Game = new (function() {
     showTitleScreen();
     resize();
     
-    var colors = ['#a7327c', '#AA8239', '#c0cd31']
-
-    // aa3388, 2277cc
-
-    //Utils.setColorScheme('#c0cd31');
     Utils.setColorScheme('#ff384b', '#1cc0e0');
-    if (window.SocialSharing)
-      addNativeSocialHooks();
-  }
-
-  // catches taps on tweet/fb buttons and passes them to native share lib
-  function addNativeSocialHooks() {
-    if (!window.plugins || !window.plugins.socialsharing)
-      SocialSharing.install();
-
-    tweet = true;
-    facebook = true;
-    
-    $('#tweeturl').on('click', function(evt){
-      evt.stopPropagation();
-      evt.preventDefault();
-      setTimeout(function() {
-        window.plugins.socialsharing.shareViaTwitter(shareMsg);
-      },0);
-      return false;
-    })
-
-    $('#facebook').on('click', function(evt){
-      evt.stopPropagation();
-      evt.preventDefault();
-      setTimeout(function() {
-        window.plugins.socialsharing.shareViaFacebook(shareMsg);
-      },0);
-      return false;
-    })
   }
 
   function start() {
     // kick in the bgservice in a few ms (fixes non-working iOS5)
     setTimeout(function() {
-      BackgroundService.kick();
+      Levels.init();
     }, 100);
     if (debug) {
       addEventListeners();
@@ -129,6 +105,15 @@ var Game = new (function() {
     setTimeout(function(){$('.hide1').removeClass('hide1')}, 1300);
     setTimeout(function(){$('.hide-title').removeClass('hide-title')}, 2300);
     setTimeout(function(){$('.hide-subtitle').removeClass('hide-subtitle'); addEventListeners();}, 3500);
+  }
+
+  function touchSplashScreen() {
+    checkTutorialPlayed(function(played){
+      if (!played)
+        startTutorial();
+      else
+        showMenu();
+    });
   }
 
   function resize() {
@@ -160,11 +145,12 @@ var Game = new (function() {
     $('#menu p').css('font-size', Math.round(containerSize * .1) + 'px')
     $('#menu p').css('padding', Math.round(containerSize * .05) + 'px 0')
     $('#menu p').css('line-height', Math.round(containerSize * .1) + 'px')
+    $('#hiddendigit, #timer').css('font-size', Math.round(containerSize * .05) + 'px');
     var scoreSize = Math.round(containerSize * .1);
     $('#score').css({'font-size': scoreSize + 'px', 'line-height': (scoreSize * 0.85) + 'px', 'height': scoreSize + 'px'});
 
-    var iconSize = Math.floor((22/320) * containerSize);
-    $('.icon').css({width:iconSize,height:iconSize,marginLeft:iconSize,marginRight:iconSize});
+    var iconSize = Math.floor((24/320) * containerSize);
+    $('.icon').css({width:iconSize,height:iconSize,marginLeft:iconSize * 0.7, marginRight:iconSize * 0.7 });
 
     $('.board table').each(function(i,el){
       var $el = $(el),
@@ -205,6 +191,11 @@ var Game = new (function() {
     $('#game').show();
     setTimeout(function() { $('#game').addClass('show'); },0);
     resize();
+    if (currentPuzzle && !currentPuzzle.isTutorial) {
+      $('#bar [data-action]').show();
+      $('#bar [data-action="continue"]').hide();
+      $('#tweeturl, #facebook, [data-action="apps"]').hide();
+    }
   }
 
   function showMenu() {
@@ -214,6 +205,8 @@ var Game = new (function() {
     clearTimeouts();
     $('.screen').hide().removeClass('show');
     $('#menu').show();
+    $('#bar').show();
+    $('#bar [data-action]').hide();
     getScore(function(value){
       $('#scorenr').html(value);
     });
@@ -226,9 +219,22 @@ var Game = new (function() {
     inText = true;
     $('.screen').hide().removeClass('show');
     $('#about').show();
+    $('#bar [data-action]').hide();
     setTimeout(function() { $('#about').addClass('show'); },0);
     resize();
     window.Marker && Marker.save('page', 'about');
+  }
+
+  function showOnline() {
+    onHomeScreen = false;
+    inText = true;
+    $('.screen').hide().removeClass('show');
+    $('#online').show();
+    $('#bar [data-action]').hide();
+    $('#bar [data-action="back"]').show();
+    setTimeout(function() { $('#online').addClass('show'); },0);
+    resize();
+    window.Marker && Marker.save('page', 'online');
   }
 
   function showRules() {
@@ -268,7 +274,8 @@ var Game = new (function() {
     $('#boardsize').html('<span>Select a size</span>');
     $('#menugrid').removeClass('hidden');
     $('#board').addClass('hidden');
-    $('#bar [data-action]').not('[data-action="back"]').hide();
+    $('#bar [data-action]').hide();
+    $('#bar [data-action="back"]').show();
     if (continueLastGame && !currentPuzzle.isTutorial) {
       $('[data-action="continue"]').show().addClass('subtleHintOnce');
     }
@@ -318,9 +325,6 @@ var Game = new (function() {
     $('#undo').closest('.iconcon').css('display', 'inline-block');
     $('#menugrid').addClass('hidden');
     $('#board').removeClass('hidden');
-    $('#bar [data-action]').show();
-    $('#bar [data-action="continue"]').hide();
-    $('#tweeturl, #facebook, [data-action="apps"]').hide();
     $('#chooseSize').removeClass('show');
     $('#score').removeClass('show').hide();
     $('#bar [data-action="help"]').removeClass('hidden wiggle');
@@ -331,6 +335,10 @@ var Game = new (function() {
     continueLastGame = true;
     inGame = true;
     inText = false;
+    timeInSeconds = 0,
+    hintsUsed = 0;
+    undosUsed = 0;   
+    locksToggled = 0;   
     systemTilesLockToggleable = true;
 
     grid.load(puzzle);
@@ -355,10 +363,17 @@ var Game = new (function() {
 
     if (!puzzle.isTutorial) window.Marker && Marker.save('level', 'start', puzzle.size);
 
-    // if (!isContinued)
-    //   time = new Date();// - 58000 - 58*60*1000;
-    // clearTimeout(timerTOH);
-    // updateTime();
+    if (!isContinued)
+      time = new Date();// - 58000 - 58*60*1000;
+    clearTimeout(timerTOH);
+    
+    showBestTime(puzzle.size);
+    updateTime();
+    if (showTime && !puzzle.isTutorial)
+      toggleTimeTrial(true);
+    else {
+      toggleTimeTrial(false);
+    }
 
     setTimeout(function() {
       showGame();
@@ -368,6 +383,49 @@ var Game = new (function() {
       //document.location.hash = size;
   }
 
+  function toggleTimeTrial(forceState) {
+    if (forceState != undefined)
+      showTime = forceState;
+    else
+      showTime = !showTime;
+
+    Storage.setDataValue('showTimeTrial', showTime);
+
+    if (showTime) {
+      $('#time').show();
+      var timeStr = showBestTime(currentPuzzle.size);
+      if (forceState == undefined)
+        grid.hint.show(HintType.TimeTrialShown, timeStr);
+    } else {
+      $('#time').hide();
+      if (forceState == undefined)
+        grid.hint.hide();
+      $('#boardsize').html('<span>' + currentPuzzle.size + ' x ' + currentPuzzle.size + '</span>');
+    }
+  }
+
+  function showBestTime(size) {
+    var bestSeconds = Storage.getDataValue('bestTimeSize' + size, size * 60);
+    if (!bestSeconds || bestSeconds === 0 || bestSeconds > (size * 60)) return false;
+
+    var ms = bestSeconds * 1000,
+        seconds = parseInt((ms/ 1000) % 60),
+        minutes = parseInt((ms / (60*1000)) % 60),
+        hours = parseInt((ms / (60 * 60 * 1000)) % 24);
+
+    minutes = (hours > 0 && minutes < 10) ? '0' + minutes : minutes;
+    seconds = (seconds < 10) ? '0' + seconds : seconds;
+
+    var timeStr = '';
+    if (hours > 0) 
+      timeStr = timeStr + hours + ':';
+    timeStr = timeStr + minutes + ':';
+    timeStr += seconds;
+
+    $('#boardsize span').text(timeStr);
+    return timeStr;
+  }
+
   function updateTime() {
     var newTime = new Date(),
         ms = newTime - time,
@@ -375,10 +433,15 @@ var Game = new (function() {
         minutes = parseInt((ms / (60*1000)) % 60),
         hours = parseInt((ms / (60 * 60 * 1000)) % 24);
 
+    // set global seconds passed
+    timeInSeconds = parseInt(ms / 1000);
+
     minutes = (minutes < 10) ? '0' + minutes : minutes;
     seconds = (seconds < 10) ? '0' + seconds : seconds;
 
-    var timeStr = '';
+    timeStr = '';
+    minutes += '';
+    seconds += '';
     if (hours > 0) timeStr = timeStr + hours + ':';
     timeStr = timeStr + minutes + ':';
     timeStr += seconds;
@@ -412,6 +475,20 @@ var Game = new (function() {
       $('#bar [data-action]').hide();
       grid.solve();
       grid.render();
+      
+      
+      
+      // store progress
+      Storage.levelCompleted(
+        currentPuzzle.size, 
+        newScore,
+        timeInSeconds, 
+        currentPuzzle.isTutorial,
+        hintsUsed,
+        undosUsed
+      );
+
+
 
       endGameTOH3 = setTimeout(function(){
         $('#grid .tile').addClass('completed');
@@ -445,6 +522,7 @@ var Game = new (function() {
             }
 
             $('#bar [data-action="back"]').show();
+            $('#time').hide();
             setTimeout(function() { $('#score').addClass('show');}, 0);
 
           }, 50);
@@ -462,6 +540,7 @@ var Game = new (function() {
     gameEnded = true;
     clearTimeouts();
     clearTimeout(timerTOH);
+    $('#time').hide();
     if (grid) {
       grid.unmark();
       grid.hint.hide();
@@ -503,6 +582,14 @@ var Game = new (function() {
       e.stopImmediatePropagation();
       return false;
     })
+
+    if (tapBoardSizeToSolve) {
+      $(document).on('touchend mouseup', '#boardsize', function() {
+        if (grid)
+          grid.solve();
+          checkForLevelComplete();
+      })
+    }
   }
 
   function tapTile (e) {
@@ -619,12 +706,7 @@ var Game = new (function() {
     // if we perform an action, let utils know so it can circumvent the doubletapbug and disable it
     switch (action) {
       case 'close-titleScreen':
-        checkTutorialPlayed(function(played){
-          if (!played)
-            startTutorial();
-          else
-            showMenu();
-        });
+        touchSplashScreen();
         break;
       case 'show-menu':
         clearTimeout(checkTOH);
@@ -652,6 +734,7 @@ var Game = new (function() {
         loadGame(lastSize);
         break;
       case 'undo':
+        //if (debug) return grid.solve();
         if (!gameEnded) {
           window.Marker && Marker.save('button', 'undo', currentPuzzle? currentPuzzle.size : undefined);
           undo();
@@ -691,6 +774,7 @@ var Game = new (function() {
         else {
           grid.hint.clear();
           grid.hint.next();
+          hintsUsed++;
           window.Marker && Marker.save('button', 'hint', currentPuzzle? currentPuzzle.size : undefined);
         }
         break;
@@ -721,6 +805,9 @@ var Game = new (function() {
         break;
       case 'about':
         showAbout();
+        break;
+      case 'stopwatch':
+        toggleTimeTrial();
         break;
     }
   }
@@ -768,6 +855,7 @@ var Game = new (function() {
   }
 
   function startTutorial() {
+    $('#bar [data-action]').hide();
     onHomeScreen = false;
     Tutorial.start();
     // set flag to not get points for the tutorial...
@@ -863,6 +951,7 @@ var Game = new (function() {
     if (value == 0) s += 'its empty state.'
     grid.hint.show(s);
     undone = true;
+    undosUsed++;
     clearTimeout(checkTOH);
     checkTOH = setTimeout(function(){checkForLevelComplete();}, 700);
   }
@@ -897,7 +986,7 @@ var Game = new (function() {
     },0)
   }
 
-  function showSystemTiles() {    
+  function showSystemTiles() {
     if (currentPuzzle.isTutorial) return;
     if (!systemTilesLockToggleable) return;
     grid.each(function(x,y,i,t) {
@@ -908,6 +997,7 @@ var Game = new (function() {
       }
     })
     systemTilesLockShown = true;
+    locksToggled++;
   }
 
   function hideSystemTiles() {
@@ -936,6 +1026,14 @@ var Game = new (function() {
     }, 10)
   }
 
+  function enableTimer() {
+    showTime = true;
+  }
+
+  function disableTimer() {
+    showTime = true;
+  }
+
   this.start = start;
   this.init = init;
   this.startGame = startGame;
@@ -945,9 +1043,12 @@ var Game = new (function() {
   this.resize = resize;
   this.showAbout = showAbout;
   this.showApps = showApps;
+  this.showOnline = showOnline;
   this.show0hh1 = show0hh1;
   this.startTutorial = startTutorial;
   this.checkForLevelComplete = checkForLevelComplete;
+  this.enableTimer = enableTimer;
+  this.disableTimer = disableTimer;
   this.undo = undo;
   this.logo = logo;
 

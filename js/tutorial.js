@@ -9,19 +9,19 @@
 var TutorialMessages = [
   //{ msg: 'Welcome to 0h n0. Tap any tile to continue...', tiles: [], next: true },
   { msg: 'Blue dots can see others <br>in their own row and column <span id="nextdot"></span>', tiles: [], next: true },
-  { msg: 'Their numbers tell how many <span id="nextdot"></span>', tiles: [], next: true },
+  { msg: 'Red dots block their view <span id="nextdot" class="red"></span>', tiles: [ ], next: true },
+  { msg: 'Numbers tell how many others each blue dot can see <span id="nextdot"></span>', tiles: [], next: true },
 
   //{ msg: 'Blue dots can see others. But red dots block their view! <span id="nextdot" class="red"></span>', tiles: [ ], next: true },
-  { msg: 'But red dots block their view! <span id="nextdot" class="red"></span>', tiles: [ ], next: true },
 
-  { msg: 'So this 2 can only see <br>dots on the right <span id="nextdot"></span>', tiles: [ [0,0] ], next: true },
-  { msg: 'Two dots. These.<br>Tap to make them blue <span id="nextdot"></span>', tiles: [ [1,0,2],[2,0,2] ] },
+  { msg: 'This 2 says it sees two dots <br>so they must be on the right <span id="nextdot"></span>', tiles: [ [0,0] ], next: true },
+  { msg: 'These two. <br>Tap to make them blue <span id="nextdot"></span>', tiles: [ [1,0,2],[2,0,2] ] },
   { msg: 'Now close its path.<br>Tap twice for a red dot <span id="nextdot" class="red"></span>', tiles: [ /*[0,0],[1,0],[2,0],*/[3,0,1] ] },
-  { msg: 'This 1 should see only one.<br>It already does - below! <span id="nextdot"></span>', tiles: [ [3,1] ], next: true },
-  { msg: 'So its other path can be closed. Go ahead... <span id="nextdot" class="red"></span>', tiles: [ [2,1,1] ] },
+  { msg: 'This 1 can see only one. <br>It already does - below <span id="nextdot"></span>', tiles: [ [3,1] ], next: true },
+  { msg: 'So a red dot must be <br>blocking its view here <span id="nextdot" class="red"></span>', tiles: [ [2,1,1] ] },
   { msg: 'This 3 can\'t see left or right.<br>But it does see a dot above <span id="nextdot"></span>', tiles: [ [1,1] ], next: true },
   { msg: 'To make it see three dots <br>it needs two more... <span id="nextdot"></span>', tiles: [ [1,2,2],[1,3,2] ] },
-  { msg: 'Can you fill out the remaining dots? <span id="nextdot" class="red"></span>', tiles: [ [0,2,1],[2,2,2],[2,3,1] ] },
+  { msg: 'Can you fill out <br>the remaining dots? <span id="nextdot" class="red"></span>', tiles: [ [0,2,1],[2,2,2],[2,3,1] ] },
   
   { msg: '', tiles: [], last: true }
 ]

@@ -20,7 +20,8 @@ var HintType = {
   Error:                    'This one doesn\'t seem right <span id="nextdot" class="red"></span>',
   Errors:                   'These don\'t seem right <span id="nextdot" class="red"></span>',
   LockedIn:                 'A blue dot should always see at least one other <span id="nextdot"></span>',
-  GameContinued:            'You can now continue<br>your previous game <span id="nextdot"></span>'
+  GameContinued:            'You can now continue<br>your previous game <span id="nextdot"></span>',
+  TimeTrialShown:           'Elapsed time is now shown. <br>Time to beat: %s <span id="nextdot"></span>'
 };
 
 function Hint(grid) {
@@ -79,8 +80,10 @@ function Hint(grid) {
     }
   }
 
-  function show(type) {
+  function show(type, arg1) {
     var s = type;
+    if (arg1)
+      s = s.replace(/\%s/gi, arg1);
     $('#hintMsg').html('<span>' + s + '</span>');
     $('html').addClass('showHint');
     visible = true;

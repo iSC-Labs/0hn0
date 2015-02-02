@@ -17,7 +17,8 @@ function Grid(size, height, id) {
       rendered = false,
       noRender = false;
       emptyTile = new Tile(-99,self,-99),
-      currentPuzzle = null;
+      currentPuzzle = null,
+      tileToSolve = null;
 
   var hint = self.hint = new Hint(this);
 
@@ -122,6 +123,27 @@ function Grid(size, height, id) {
     return self;
   }
 
+  // only fill dots in the row and col of a tile
+  function fillDotsAround(aroundTile) {
+    overwriteNumbers = true;
+    for (var i=0; i<size; i++) {
+
+      var tile = tiles[i * size + aroundTile.x];
+      if (tile.type == Tile.Type.Unknown)
+        tile.dot();
+      if (tile.type == Tile.Type.Value && overwriteNumbers)
+        tile.dot();
+
+      var tile = tiles[aroundTile.y * size + i];
+      if (tile.type == Tile.Type.Unknown)
+        tile.dot();
+      if (tile.type == Tile.Type.Value && overwriteNumbers)
+        tile.dot();
+    }
+    render();
+    return self;
+  }
+
   function number(x, y, n) {
     tile(x,y).number(n);
     render();
@@ -159,15 +181,14 @@ function Grid(size, height, id) {
         ); 
   }
 
+  // generates simply creates a maxed out grid with only numbers
   function generate(size) {
     var len = size * size;
     width = height = size;
     for (var i=0; i<len; i++) {
-      var tile = new Tile(-1, self, i);
+      var tile = new Tile(2*(size-1), self, i);
       tiles.push(tile);
     }
-    fillDots();
-    solve();
   }
 
   // get every number down to its max or below
@@ -177,20 +198,22 @@ function Grid(size, height, id) {
         tile,
         maxAllowed = maxAllowed || width;
 
+    var maxTiles = [];
+    for (var i=0; i<tiles.length; i++) {
+      tile = tiles[i];
+      if (tile.value > maxAllowed) {
+        maxTiles.push(tile);
+      }
+    }
+    
+    Utils.shuffle(maxTiles);
+
     while (tryAgain && attempts++ < 99) {
       tryAgain = false;
-      var maxTiles = [];
-
-      for (var i=0; i<tiles.length; i++) {
-        tile = tiles[i];
-        if (tile.value > maxAllowed) {
-          maxTiles.push(tile);
-        }
-      }
-      Utils.shuffle(maxTiles);
 
       for (var i=0; i<maxTiles.length; i++) {
-        tile = maxTiles[i];
+        var x = maxTiles[i].x, y = maxTiles[i].y; 
+        tile = tiles[y * size + x];
         if (tile.value > maxAllowed) {
           var min = 1,
               max = maxAllowed,
@@ -204,14 +227,12 @@ function Grid(size, height, id) {
             cut = cuts.pop();
             if (!firstCut)
               firstCut = cut;
-            //if (!noWallsAround(cut))
-              //cut = null;
           }
           if (!cut)
             cut = firstCut;
           if (cut) {
             cut.wall(true);
-            fillDots(true);
+            fillDotsAround(cut);
             solve();
             tryAgain = true;
           }
@@ -255,9 +276,10 @@ function Grid(size, height, id) {
       }
 
       // second pass collection, now we have full info
+      var tile, info;
       for (var i=0; i<pool.length; i++) {
-        var tile = pool[i],
-            info = tile.collect(tile.info);
+        tile = pool[i],
+        info = tile.collect(tile.info);
         
         // dots with no empty tiles in its paths can be fixed
         if (tile.isDot() && !info.unknownsAround && !hintMode) {
@@ -315,6 +337,14 @@ function Grid(size, height, id) {
               tryAgain = HintType.OneDirectionRequired;
               break;
             }
+            // if the other directions are not sufficient, and this direction would immediately complete it, do so
+            // else if (curDir.maxPossibleCountInOtherDirections < tile.value) {
+            //   if (hintMode)
+            //     hintTile = tile;
+            //   else
+            //     tile.closeDirection(dir, true, 1);
+            //   tryAgain = HintType.OneDirectionRequired;
+            // }
           }
           // break out the outer for loop too
           if (tryAgain)
@@ -338,6 +368,14 @@ function Grid(size, height, id) {
             //break;
           //}
         }
+      }
+      // when the broken tile was found and restored to its original value, quickly return true!
+      // but; only do this for non-walls! Walls change the grid, blue dots don't
+      if (tileToSolve && tileToSolve.allowQuickSolve && tile && tileToSolve.tile.x == tile.x && tileToSolve.tile.y == tile.y) {
+        if (tileToSolve.exportValue == tile.getExportValue()) {
+          //console.log('quickwin!', attempts)
+          return true;
+        } 
       }
       if (hintMode) {
         hint.mark(hintTile, tryAgain);
@@ -372,60 +410,69 @@ function Grid(size, height, id) {
       console.log('Cannot restore save slot ', slot);
       return self;
     }
-    tiles = [];
-    for (var i=0; i<saveSlot.values.length; i++) {
-      var value = saveSlot.values[i];
-      tiles.push(new Tile(value, self, i))
-    }
+    for (var i=0; i<saveSlot.values.length; i++)
+      tiles[i].value = saveSlot.values[i];
     render();
     return self;
   }
 
+  // breakdown wrapper, optionally does 2 appempts:
+  // 1 = with quick solving (when the tile to solve is found, exit)
+  // 2 = (if 1 didn't result in a solvable board, do so the old way)
   function breakDown() {
+    breakDownWithQuickSolveOrNot(true);
+    if (!solve()) {
+      restore('full');
+      breakDownWithQuickSolveOrNot(false);
+    }
+    restore('empty');
+  }
+  
+  // the actial breakDown method
+  function breakDownWithQuickSolveOrNot(quickSolve) {
     var tryAgain = true,
         attempts = 0,
         tile,
         walls = 0,
         minWalls = 1,//Math.round(tiles.length * 0.08),
-        pool = [];
+        pool = tiles.concat();
+
+    tileToSolve = null;
 
     save('full');
-    // get the tile set as a shuffled pool
-    for (var i=0; i<tiles.length; i++) {
-      tile = tiles[i];
-      pool.push(tiles[i])
 
-      if (tile.isWall())
+    // count walls
+    for (var i=0; i<pool.length; i++)
+      if (tiles[i].isWall())
         walls++;
-    }
 
     Utils.shuffle(pool);
 
-    while (tryAgain && pool.length && attempts++ < 99) {
-      tryAgain = false;
-      save(1);
-      
-      // only use the pool for x,y coordinates, but retrieve the tile again because it has been rebuilt
-      var tempTile = pool.pop();
-      tile = tiles[getIndex(tempTile.x, tempTile.y)];
-      var isWall = tile.isWall();
-
-      // make sure there is a minimum of walls
-      if (isWall && walls <= minWalls) continue;
-
-      tile.unknown();
-      save(2, tile.x, tile.y);
+    var i=0;
+    while (i < pool.length && attempts++ < 6) {
+      tileToSove = null;
+      tile = pool[i++];
+      // always show at least one wall
+      if (tile.isWall()) {
+        if (walls == minWalls) {
+          continue;
+        }
+        walls--;
+      }
+      tileToSolve = { tile: tile, exportValue: tile.getExportValue(), allowQuickSolve: quickSolve };
+      tile.clear();
+      save('breakdown');
       if (solve(true)) {
-        if (isWall)
-          walls--;
-        restore(2, tile.x, tile.y);
-        tryAgain = true;
+        restore('breakdown');
+        attempts = 0;
       } else {
-        //console.log('cannot be solved when removing', tile.x, tile.y)
-        restore(1);
-        tryAgain = true;
+        restore('breakdown');
+        tileToSolve.tile.setExportValue(tileToSolve.exportValue);
+        if (tile.isWall()) 
+          walls++;
       }
     }
+    tileToSolve = null;
     save('empty');
   }
 

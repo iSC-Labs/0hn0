@@ -206,6 +206,7 @@ p {
 #rules.icon { background-image: url(../img/question.png); }
 #continue.icon { background-image: url(../img/play.png); }
 #apps.icon { background-image: url(../img/mobile.png); }
+#stopwatch.icon { background-image: url(../img/stopwatch.png); }
 
 #bar {
   position: absolute;
@@ -216,23 +217,26 @@ p {
 }
 #time {
   position: absolute;
-  bottom: 14%; right: 0;
+  bottom: 13%; left: 0;
   width: 100%;
   text-align: center;
   font-family: 'Josefin Sans', sans-serif;
   font-size: 16px;
   color: inherit;
+  opacity: .4;
   display: none;
+}
+#time .digit {
+  display: inline-block;
 }
 #hiddendigit {
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 16px;
   pointer-events: none; cursor: default;
   position: absolute; left: -1000px;
-  display: none;
+  opacity: 0;
 }
-  #time .two-digits {
-    display: inline-block;
-    text-align: right;
-  }
+
 .error {
   -webkit-animation: wiggle .75s ease;
   -moz-animation: wiggle .75s ease;
@@ -347,11 +351,20 @@ p {
   -ms-transition: opacity .3s ease-out;
   transition: opacity .3s ease-out;
 }
-  #trophy {
+/*  #trophy {
     position: absolute;
     width: auto; height: 100%;
     right: 50%; top: 0;
     padding-right: 2%;
+  }
+*/
+  #scorelabel {
+    position: absolute;
+    display: block;
+    vertical-align: top;
+    right: 50%;
+    top: 10%;
+    padding-left: 2%;
   }
   #scorenr {
     position: absolute;
@@ -393,13 +406,14 @@ p {
   animation: completed 2s ease-in;
 }
 
-#apps a, #ohhi a {
+#apps a, #ohhi a, .link {
   color: inherit;
   text-decoration: none;
   border-bottom: solid #30a7c2 2px;
 }
 
 .tutorial .tile .inner { -webkit-transition: all .3s ease-out; }
+
 .tutorial-0 .tile .inner,
 .tutorial-1 .tile .inner,
 .tutorial-2 .tile .inner { -webkit-transition: all .8s ease-out; }
@@ -408,8 +422,8 @@ p {
 .tutorial-0 .tile- .inner { opacity: 0; }
 .tutorial-0 .tile-1 .inner { opacity: 0; }
 
+.tutorial-1 .tile .inner { color: transparent; }
 .tutorial-1 .tile- .inner { opacity: 0; }
-.tutorial-1 .tile-1 .inner { opacity: 0; }
 
 .tutorial-2 .tile- .inner { opacity: 0; }
 
@@ -423,7 +437,13 @@ p {
 .tutorial-4 #tile-2-0 .inner { opacity: 1; }
 .tutorial-4 #tile-3-0 .inner { opacity: 1; }
 
-.tutorial-0 #bar [data-action="back"] { opacity: .05; }
+.tutorial-0 #bar [data-action="back"] { 
+  opacity: .05; 
+  -webkit-transition: none;
+  -moz-transition: none;
+  -ms-transition: none;
+  transition: none;
+}
 .tutorial-1 #bar [data-action="back"] { opacity: .1; }
 .tutorial-2 #bar [data-action="back"] { opacity: .15; }
 .tutorial-3 #bar [data-action="back"] { opacity: .2; }
